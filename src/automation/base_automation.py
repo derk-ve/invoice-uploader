@@ -1,4 +1,3 @@
-import pyautogui
 import platform
 import time
 
@@ -20,10 +19,6 @@ class BaseAutomation:
         self.logger = logger
         self.delay = config.get('automation', {}).get('delay', 2.0)
         self.is_wsl = EnvironmentDetector.is_wsl()
-        
-        # Set pyautogui settings
-        pyautogui.FAILSAFE = True
-        pyautogui.PAUSE = self.delay
     
     def wait(self, seconds=None):
         """Wait for specified time or default delay."""

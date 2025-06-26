@@ -48,9 +48,6 @@ class AppLauncher(BaseAutomation):
         """Launch Snelstart application."""
         app_path = self._get_app_path()
         
-        if not self._validate_app_path(app_path):
-            return False
-        
         self.logger.info(f"Launching Snelstart from: {app_path}")
         
         try:
