@@ -1,9 +1,9 @@
 # Basic settings
 snelstart:
   app_path: "C:\\Users\\derkv\\AppData\\Local\\SnelStart\\SnelStart.exe"
+  # Login credentials are now loaded from environment variables:
+  # SNELSTART_EMAIL and SNELSTART_PASSWORD
   login:
-    email: ""
-    password: ""
     timeout: 30
     retry_attempts: 3
 

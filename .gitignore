@@ -9,6 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Project-specific ignores
 logs/
 invoices/
