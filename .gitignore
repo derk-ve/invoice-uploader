@@ -12,6 +12,5 @@ wheels/
 # Project-specific ignores
 logs/
 invoices/
-config/config.yaml
 uv.lock
 .python-version

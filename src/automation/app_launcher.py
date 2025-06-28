@@ -41,8 +41,9 @@ class AppLauncher(BaseAutomation):
     
     def _wait_for_startup(self):
         """Wait for the application to start up."""
-        self.logger.info("Waiting for Snelstart to start...")
-        self.wait(5)  # Give the app time to launch
+        wait_time = 15
+        self.logger.info(f"Waiting {wait_time} seconds for Snelstart to start...")
+        self.wait(wait_time)  # Give the app time to launch
     
     def launch_snelstart(self):
         """Launch Snelstart application."""

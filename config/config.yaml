@@ -1,0 +1,17 @@
+# Basic settings
+snelstart:
+  app_path: "C:\\Users\\derkv\\AppData\\Local\\SnelStart\\SnelStart.exe"
+  login:
+    email: ""
+    password: ""
+    timeout: 30
+    retry_attempts: 3
+
+# Simple paths
+paths:
+  invoices: "./invoices"
+  logs: "./logs"
+
+# Basic automation
+automation:
+  delay: 2.0
