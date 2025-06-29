@@ -101,31 +101,103 @@ class UIInspector:
             print("UI Automation not available - cannot inspect elements")
             return elements
         
-        # Find the login window specifically
+        # Find the login window specifically using information from pygetwindow
         login_window = None
+        
+        # First, get window titles found by pygetwindow to use as exact matches
+        found_titles = []
+        for window_info in self.snelstart_windows:
+            if window_info.get('method') == 'pygetwindow':
+                found_titles.append(window_info['title'])
+        
+        print(f"Titles found by pygetwindow: {found_titles}")
+        
+        # Debug: Show what UI automation can see
+        print("\\nDEBUG: Checking what UI automation can find...")
         try:
-            # Try to find login window first (prioritize "Inloggen")
-            patterns_to_try = ["*Inloggen*", "*SnelStart*"]
+            # Try to enumerate all top-level windows that UI automation can see
+            desktop = auto.GetRootControl()
+            all_windows = desktop.GetChildren()
+            print(f"UI automation sees {len(all_windows)} top-level windows:")
             
-            for pattern in patterns_to_try:
-                print(f"Trying to find window with pattern: {pattern}")
-                window = auto.WindowControl(searchDepth=1, Name=pattern)
-                if window.Exists(maxSearchSeconds=3):
-                    print(f"Found window: {window.Name}")
-                    if "Inloggen" in window.Name:
-                        login_window = window
-                        print(f"Using login window: {window.Name}")
-                        break
-                    elif login_window is None:  # Use as fallback if no login window found
-                        login_window = window
-                        print(f"Using fallback window: {window.Name}")
+            for i, win in enumerate(all_windows[:10]):  # Show first 10 to avoid spam
+                try:
+                    win_name = getattr(win, 'Name', 'No name')
+                    win_class = getattr(win, 'ClassName', 'No class')
+                    if "SnelStart" in win_name or "Inloggen" in win_name or win_name:
+                        print(f"  {i+1}. Name: '{win_name}', Class: '{win_class}'")
+                except:
+                    pass
+        except Exception as debug_error:
+            print(f"Debug enumeration failed: {debug_error}")
+        
+        try:
+            # Try exact window titles first
+            titles_to_try = []
+            
+            # Prioritize login window title
+            for title in found_titles:
+                if "Inloggen" in title:
+                    titles_to_try.insert(0, title)  # Insert at beginning for priority
+                else:
+                    titles_to_try.append(title)
+            
+            # Also try pattern matching as fallback
+            patterns_to_try = ["*Inloggen*", "*SnelStart*", "Inloggen SnelStart 12", "SnelStart 12"]
+            
+            # Combine exact titles and patterns
+            all_attempts = titles_to_try + patterns_to_try
+            
+            print(f"Will try these window identifiers: {all_attempts}")
+            
+            for attempt in all_attempts:
+                print(f"Trying to find window: '{attempt}'")
+                try:
+                    window = auto.WindowControl(searchDepth=1, Name=attempt)
+                    if window.Exists(maxSearchSeconds=2):
+                        print(f"SUCCESS: Found window with Name='{attempt}': {window.Name}")
+                        # Prioritize login window
+                        if "Inloggen" in window.Name:
+                            login_window = window
+                            print(f"Using login window: {window.Name}")
+                            break
+                        elif login_window is None:  # Use as fallback
+                            login_window = window
+                            print(f"Using fallback window: {window.Name}")
+                    else:
+                        print(f"Window with Name='{attempt}' does not exist")
+                except Exception as attempt_error:
+                    print(f"Error trying '{attempt}': {attempt_error}")
+            
+            # If still no window found, try alternative approaches
+            if not login_window:
+                print("\\nTrying alternative approaches...")
+                
+                # Try using different search criteria
+                alternative_attempts = [
+                    {"ClassName": "Window", "Name": "*Inloggen*"},
+                    {"ClassName": "*", "Name": "Inloggen SnelStart 12"},
+                    {"Name": "Inloggen*"},
+                ]
+                
+                for criteria in alternative_attempts:
+                    try:
+                        print(f"Trying criteria: {criteria}")
+                        window = auto.WindowControl(searchDepth=1, **criteria)
+                        if window.Exists(maxSearchSeconds=1):
+                            login_window = window
+                            print(f"SUCCESS with alternative approach: {window.Name}")
+                            break
+                    except Exception as alt_error:
+                        print(f"Alternative approach failed: {alt_error}")
             
             if not login_window:
-                print("No suitable window found for element inspection")
+                print("FAILED: No suitable window found for element inspection")
+                print("This may be due to UI automation permissions or window access restrictions")
                 return elements
             
         except Exception as e:
-            print(f"Error finding login window: {e}")
+            print(f"Error during window finding process: {e}")
             return elements
         
         # Inspect elements in the login window
