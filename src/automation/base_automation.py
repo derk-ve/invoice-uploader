@@ -68,7 +68,13 @@ class BaseAutomation:
             if 'name' in path_config:
                 search_criteria['Name'] = path_config['name']
             if 'name_lambda' in path_config:
-                search_criteria['Name'] = path_config['name_lambda']
+                if path_config.get('search_pattern'):
+                    # Create lambda function from search pattern
+                    pattern = path_config['search_pattern']
+                    search_criteria['Name'] = lambda name: pattern.lower() in name.lower()
+                else:
+                    # Direct lambda function
+                    search_criteria['Name'] = path_config['name_lambda']
             if 'class_name' in path_config:
                 search_criteria['ClassName'] = path_config['class_name']
             if 'control_type' in path_config:

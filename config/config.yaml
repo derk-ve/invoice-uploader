@@ -8,36 +8,64 @@ snelstart:
     retry_attempts: 3
   
   # UI element paths for reliable automation
-  # Run utils/ui_inspector.py to discover specific automation IDs and element paths
+  # Based on UI inspection results from utils/ui_inspector.py
   ui_paths:
+    # Main window patterns for finding SnelStart application
+    main_window:
+      - name: "SnelStart 12"
+        class_name: "WindowsForms10.Window.8.app.0.141b42a_r8_ad1"
+      - name_lambda: true  # Will use lambda name: 'SnelStart' in name
+        search_pattern: "SnelStart"
+      - name_lambda: true  # Will use lambda name: 'snelstart' in name.lower()
+        search_pattern: "snelstart"
+    
     login:
+      # Login container - the embedded WebAuthentication window
+      login_container:
+        - automation_id: "WebAuthentication"
+          control_type: "WindowControl"
+          name: "Inloggen SnelStart 12"
+          class_name: "WindowsForms10.Window.8.app.0.141b42a_r8_ad1"
+      
       email_field:
-        # Primary paths (replace with actual values from UI inspector)
+        # Primary paths - will search within WebAuthentication container
         - automation_id: "email_input"
           control_type: "EditControl"
         - name: "E-mailadres"
           control_type: "EditControl"
         - name: "Email"
           control_type: "EditControl"
-        # Fallback paths
+        # Fallback paths using lambda functions
+        - name_lambda: true
+          search_pattern: "email"
+          control_type: "EditControl"
+        - name_lambda: true
+          search_pattern: "gebruiker"
+          control_type: "EditControl"
         - class_name: "TextBox"
           search_text: "email"
-        - class_name: "TextBox"
-          search_text: "gebruiker"
         - control_type: "EditControl"
       
       continue_button:
-        # Primary paths (replace with actual values from UI inspector)
+        # Primary paths - will search within WebAuthentication container
         - name: "Doorgaan"
           control_type: "ButtonControl"
         - name: "Continue"
           control_type: "ButtonControl"
+        - name: "Inloggen"
+          control_type: "ButtonControl"
         - automation_id: "continue_btn"
           control_type: "ButtonControl"
-        # Fallback paths
-        - search_text: "doorgaan"
-        - search_text: "continue"
-        - search_text: "inloggen"
+        # Fallback paths using lambda functions
+        - name_lambda: true
+          search_pattern: "doorgaan"
+          control_type: "ButtonControl"
+        - name_lambda: true
+          search_pattern: "continue"
+          control_type: "ButtonControl"
+        - name_lambda: true
+          search_pattern: "inloggen"
+          control_type: "ButtonControl"
         - control_type: "ButtonControl"
 
 # Simple paths

@@ -23,11 +23,6 @@ class SnelstartAutomation:
         # Window management
         self.current_window = None
         self.window_cache = {}
-        self.window_patterns = [
-            lambda name: 'SnelStart' in name,
-            lambda name: 'snelstart' in name,
-            lambda name: 'SNELSTART' in name
-        ]
         
         # Initialize all automation components
         self.app_launcher = AppLauncher(config, logger)
@@ -37,6 +32,75 @@ class SnelstartAutomation:
         self.invoice_matcher = InvoiceMatcher(config, logger)
         self.result_saver = ResultSaver(config, logger)
     
+    def _get_main_window_paths(self):
+        """Get main window UI paths from config with fallback patterns."""
+        main_window_paths = self.config.get('snelstart', {}).get('ui_paths', {}).get('main_window', [])
+        
+        # If no paths configured, use fallback patterns
+        if not main_window_paths:
+            self.logger.warning("No main_window UI paths configured, using fallback patterns")
+            main_window_paths = [
+                {'name_lambda': True, 'search_pattern': 'SnelStart'},
+                {'name_lambda': True, 'search_pattern': 'snelstart'},
+                {'name': 'SnelStart 12'}
+            ]
+        
+        return main_window_paths
+    
+    def _build_window_search_criteria(self, path_config):
+        """Convert path configuration to search criteria dictionary."""
+        search_criteria = {}
+        
+        if path_config.get('name'):
+            search_criteria['Name'] = path_config['name']
+        elif path_config.get('name_lambda') and path_config.get('search_pattern'):
+            pattern = path_config['search_pattern']
+            search_criteria['Name'] = lambda name: pattern in name
+        
+        if path_config.get('class_name'):
+            search_criteria['ClassName'] = path_config['class_name']
+        
+        return search_criteria
+    
+    def _try_find_window_with_path(self, path_config):
+        """Try to find window using a single path configuration."""
+        try:
+            search_criteria = self._build_window_search_criteria(path_config)
+            
+            if search_criteria:
+                window = auto.WindowControl(searchDepth=1, **search_criteria)
+                if window.Exists(maxSearchSeconds=3):
+                    return window
+            
+            return None
+            
+        except Exception as e:
+            self.logger.debug(f"Failed to find window with path {path_config}: {e}")
+            return None
+    
+    def _find_new_window(self):
+        """Find Snelstart window using all configured UI paths."""
+        self.logger.info("Finding Snelstart window using configured UI paths...")
+        
+        try:
+            main_window_paths = self._get_main_window_paths()
+            
+            for i, path_config in enumerate(main_window_paths):
+                self.logger.debug(f"Trying window path {i+1}: {path_config}")
+                
+                window = self._try_find_window_with_path(path_config)
+                if window:
+                    self.current_window = window
+                    self.logger.info(f"Found Snelstart window using path {i+1}: {window.Name}")
+                    return window
+            
+            self.logger.warning("Snelstart window not found using any configured paths")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error finding Snelstart window: {str(e)}")
+            return None
+
     def get_current_window(self, refresh=False):
         """
         Get the current Snelstart window, with option to refresh.
@@ -60,23 +124,8 @@ class SnelstartAutomation:
                 # Window is no longer valid, clear it
                 self.current_window = None
         
-        # Find new window
-        self.logger.info("Finding Snelstart window...")
-        
-        try:
-            for pattern_func in self.window_patterns:
-                window = auto.WindowControl(searchDepth=1, Name=pattern_func)
-                if window.Exists(maxSearchSeconds=5):
-                    self.current_window = window
-                    self.logger.info(f"Found Snelstart window: {window.Name}")
-                    return window
-            
-            self.logger.warning("Snelstart window not found")
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Error finding Snelstart window: {str(e)}")
-            return None
+        # Find new window using helper method
+        return self._find_new_window()
     
     def wait_for_window(self, timeout=30):
         """
