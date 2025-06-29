@@ -27,9 +27,10 @@ class EnvironmentDetector:
 class BaseAutomation:
     """Base class for all automation components."""
     
-    def __init__(self, config, logger):
+    def __init__(self, config, logger, automation=None):
         self.config = config
         self.logger = logger
+        self.automation = automation  # Reference to main SnelstartAutomation instance
         self.delay = config.get('automation', {}).get('delay', 2.0)
         self.is_wsl = EnvironmentDetector.is_wsl()
     

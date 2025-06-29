@@ -25,13 +25,13 @@ class SnelstartAutomation:
         self.window_cache = {}
         self.window_patterns = ["*SnelStart*", "*snelstart*", "*SNELSTART*"]
         
-        # Initialize all automation components and pass this instance for window access
+        # Initialize all automation components
         self.app_launcher = AppLauncher(config, logger)
-        self.login_handler = LoginHandler(config, logger, automation=self)
-        self.invoice_uploader = InvoiceUploader(config, logger, automation=self)
-        self.transaction_selector = TransactionSelector(config, logger, automation=self)
-        self.invoice_matcher = InvoiceMatcher(config, logger, automation=self)
-        self.result_saver = ResultSaver(config, logger, automation=self)
+        self.login_handler = LoginHandler(config, logger, automation=self)  # Only LoginHandler needs automation reference
+        self.invoice_uploader = InvoiceUploader(config, logger)
+        self.transaction_selector = TransactionSelector(config, logger)
+        self.invoice_matcher = InvoiceMatcher(config, logger)
+        self.result_saver = ResultSaver(config, logger)
     
     def get_current_window(self, refresh=False):
         """
