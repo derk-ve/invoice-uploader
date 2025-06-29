@@ -14,9 +14,32 @@ class LoginHandler(BaseAutomation):
         """Get UI path configurations from config."""
         return self.config.get('snelstart', {}).get('ui_paths', {}).get('login', {})
     
+    def _find_login_container(self, main_window):
+        """Find the embedded login container within the main SnelStart window."""
+        self.logger.info("Looking for embedded login container...")
+        
+        ui_paths = self._get_ui_paths()
+        container_paths = ui_paths.get('login_container', [
+            # Default fallback paths based on inspection
+            {'automation_id': 'WebAuthentication', 'control_type': 'WindowControl'},
+            {'name': 'Inloggen SnelStart 12', 'control_type': 'WindowControl'},
+            {'name': '*Inloggen*', 'control_type': 'WindowControl'},
+        ])
+        
+        return self.find_element_by_paths(main_window, container_paths)
+
     def _find_email_field(self, window):
         """Find the email input field using UI paths."""
         self.logger.info("Looking for email field using UI paths...")
+        
+        # First try to find the login container
+        login_container = self._find_login_container(window)
+        search_window = login_container if login_container else window
+        
+        if login_container:
+            self.logger.info("Found login container, searching within it for email field")
+        else:
+            self.logger.info("No login container found, searching in main window")
         
         ui_paths = self._get_ui_paths()
         email_paths = ui_paths.get('email_field', [
@@ -29,11 +52,20 @@ class LoginHandler(BaseAutomation):
             {'control_type': 'EditControl'}  # Generic fallback
         ])
         
-        return self.find_element_by_paths(window, email_paths)
+        return self.find_element_by_paths(search_window, email_paths)
     
     def _find_continue_button(self, window):
         """Find the Continue/Login button using UI paths."""
         self.logger.info("Looking for continue button using UI paths...")
+        
+        # First try to find the login container
+        login_container = self._find_login_container(window)
+        search_window = login_container if login_container else window
+        
+        if login_container:
+            self.logger.info("Found login container, searching within it for continue button")
+        else:
+            self.logger.info("No login container found, searching in main window")
         
         ui_paths = self._get_ui_paths()
         button_paths = ui_paths.get('continue_button', [
@@ -49,7 +81,7 @@ class LoginHandler(BaseAutomation):
             {'control_type': 'ButtonControl'}  # Generic fallback
         ])
         
-        return self.find_element_by_paths(window, button_paths)
+        return self.find_element_by_paths(search_window, button_paths)
     
     def _enter_email_credentials(self, email_field):
         """Enter email credentials using safe methods."""

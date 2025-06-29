@@ -303,7 +303,7 @@ class UIInspector:
             print(f"  {'  ' * depth}Error getting children at depth {depth}: {e}")
     
     def generate_report(self):
-        """Generate a detailed inspection report."""
+        """Generate a detailed inspection report with clear UI structure."""
         report = []
         report.append("=== SNELSTART UI INSPECTION REPORT ===\\n")
         
@@ -321,33 +321,148 @@ class UIInspector:
         else:
             report.append("  No SnelStart windows found")
         
-        report.append("\\nELEMENTS FOUND:")
+        report.append("\\n=== UI STRUCTURE FOR PATH DEFINITIONS ===\\n")
+        
+        # Create a hierarchical structure view
         if self.elements_found:
-            for i, element in enumerate(self.elements_found):
-                indent = "  " + ("  " * element.get('depth', 0))
-                report.append(f"{indent}{i+1}. Type: {element['type']}")
-                if element.get('window'):
-                    report.append(f"{indent}   Window: {element['window']}")
-                if element.get('index') is not None:
-                    report.append(f"{indent}   Index: {element['index']}")
-                if element['name']:
-                    report.append(f"{indent}   Name: '{element['name']}'")
-                if element['automation_id']:
-                    report.append(f"{indent}   AutomationId: '{element['automation_id']}'")
-                if element['class_name']:
-                    report.append(f"{indent}   ClassName: '{element['class_name']}'")
-                if element['value']:
-                    report.append(f"{indent}   Value: '{element['value']}'")
-                if element.get('is_enabled') is not None:
-                    report.append(f"{indent}   Enabled: {element['is_enabled']}")
-                if element.get('is_visible') is not None:
-                    report.append(f"{indent}   Visible: {element['is_visible']}")
-                if element.get('depth') is not None:
-                    report.append(f"{indent}   Depth: {element['depth']}")
-                report.append(f"{indent}   Description: {element['description']}")
-                report.append("")
+            # Group elements by depth for clearer structure
+            depth_groups = {}
+            for element in self.elements_found:
+                depth = element.get('depth', 0)
+                if depth not in depth_groups:
+                    depth_groups[depth] = []
+                depth_groups[depth].append(element)
+            
+            # Generate hierarchical structure
+            for depth in sorted(depth_groups.keys()):
+                if depth == 0:
+                    report.append("MAIN WINDOW STRUCTURE:")
+                else:
+                    report.append(f"\\nDEPTH {depth} ELEMENTS:")
+                
+                for element in depth_groups[depth]:
+                    indent = "  " + ("  " * depth)
+                    
+                    # Create a clear identifier line
+                    identifier_parts = []
+                    if element.get('name'):
+                        identifier_parts.append(f"Name: '{element['name']}'")
+                    if element.get('automation_id'):
+                        identifier_parts.append(f"AutomationId: '{element['automation_id']}'")
+                    if element.get('class_name'):
+                        identifier_parts.append(f"Class: '{element['class_name']}'")
+                    
+                    identifier = " | ".join(identifier_parts) if identifier_parts else "No identifiers"
+                    
+                    report.append(f"{indent}[{element['type']}] {identifier}")
+                    
+                    # Add status info
+                    status_info = []
+                    if element.get('is_enabled') is not None:
+                        status_info.append(f"Enabled: {element['is_enabled']}")
+                    if element.get('is_visible') is not None:
+                        status_info.append(f"Visible: {element['is_visible']}")
+                    if element.get('value'):
+                        status_info.append(f"Value: '{element['value']}'")
+                    
+                    if status_info:
+                        report.append(f"{indent}  ({' | '.join(status_info)})")
+                    
+                    report.append("")
         else:
             report.append("  No UI elements found")
+        
+        # Add UI path suggestions
+        report.append("\\n=== SUGGESTED UI PATHS FOR AUTOMATION ===\\n")
+        
+        # Look for login-relevant elements
+        login_elements = []
+        button_elements = []
+        input_elements = []
+        
+        for element in self.elements_found:
+            element_type = element.get('type', '').lower()
+            element_name = element.get('name', '').lower()
+            automation_id = element.get('automation_id', '').lower()
+            
+            # Categorize elements that might be useful for login
+            if 'edit' in element_type or 'text' in element_type:
+                if any(keyword in element_name or keyword in automation_id 
+                       for keyword in ['email', 'user', 'login', 'gebruiker']):
+                    input_elements.append(element)
+            elif 'button' in element_type:
+                if any(keyword in element_name or keyword in automation_id 
+                       for keyword in ['login', 'continue', 'doorgaan', 'inloggen']):
+                    button_elements.append(element)
+            elif element.get('automation_id') == 'WebAuthentication':
+                login_elements.append(element)
+        
+        if login_elements:
+            report.append("LOGIN CONTAINER ELEMENTS:")
+            for element in login_elements:
+                report.append(f"  - {element['type']} with AutomationId: '{element['automation_id']}'")
+            report.append("")
+        
+        if input_elements:
+            report.append("POTENTIAL INPUT FIELDS:")
+            for element in input_elements:
+                identifiers = []
+                if element.get('name'):
+                    identifiers.append(f"Name: '{element['name']}'")
+                if element.get('automation_id'):
+                    identifiers.append(f"AutomationId: '{element['automation_id']}'")
+                if element.get('class_name'):
+                    identifiers.append(f"Class: '{element['class_name']}'")
+                report.append(f"  - {element['type']} | {' | '.join(identifiers)}")
+            report.append("")
+        
+        if button_elements:
+            report.append("POTENTIAL ACTION BUTTONS:")
+            for element in button_elements:
+                identifiers = []
+                if element.get('name'):
+                    identifiers.append(f"Name: '{element['name']}'")
+                if element.get('automation_id'):
+                    identifiers.append(f"AutomationId: '{element['automation_id']}'")
+                if element.get('class_name'):
+                    identifiers.append(f"Class: '{element['class_name']}'")
+                report.append(f"  - {element['type']} | {' | '.join(identifiers)}")
+            report.append("")
+        
+        # Add configuration template
+        report.append("\\n=== CONFIGURATION TEMPLATE ===\\n")
+        report.append("Add this to your config.yaml under snelstart.ui_paths.login:")
+        report.append("")
+        report.append("login_container:")
+        if login_elements:
+            element = login_elements[0]
+            if element.get('automation_id'):
+                report.append(f"  - automation_id: '{element['automation_id']}'")
+                report.append(f"    control_type: '{element['type']}'")
+        
+        report.append("\\nemail_field:")
+        if input_elements:
+            for element in input_elements[:2]:  # Show top 2 candidates
+                report.append(f"  - # Option: {element['type']}")
+                if element.get('name'):
+                    report.append(f"    name: '{element['name']}'")
+                if element.get('automation_id'):
+                    report.append(f"    automation_id: '{element['automation_id']}'")
+                if element.get('class_name'):
+                    report.append(f"    class_name: '{element['class_name']}'")
+                report.append(f"    control_type: '{element['type']}'")
+        
+        report.append("\\ncontinue_button:")
+        if button_elements:
+            for element in button_elements[:2]:  # Show top 2 candidates
+                report.append(f"  - # Option: {element['type']}")
+                if element.get('name'):
+                    report.append(f"    name: '{element['name']}'")
+                if element.get('automation_id'):
+                    report.append(f"    automation_id: '{element['automation_id']}'")
+                if element.get('class_name'):
+                    report.append(f"    class_name: '{element['class_name']}'")
+                report.append(f"    control_type: '{element['type']}'")
         
         return "\\n".join(report)
     
