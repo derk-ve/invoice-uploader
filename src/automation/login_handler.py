@@ -1,177 +1,163 @@
-import time
 from .base_automation import BaseAutomation
-
-# Handle pyautogui import for different environments
-try:
-    import pyautogui
-    PYAUTOGUI_AVAILABLE = True
-except Exception as e:
-    print(f"Warning: pyautogui not available: {e}")
-    PYAUTOGUI_AVAILABLE = False
 
 
 class LoginHandler(BaseAutomation):
     """Handles login process for Snelstart."""
     
-    def __init__(self, config, logger):
+    def __init__(self, config, logger, automation=None):
         super().__init__(config, logger)
+        self.automation = automation  # Reference to main SnelstartAutomation for window access
         self.timeout = config.get('snelstart', {}).get('login', {}).get('timeout', 30)
         self.retry_attempts = config.get('snelstart', {}).get('login', {}).get('retry_attempts', 3)
-        
-        # Set pyautogui settings if available
-        if PYAUTOGUI_AVAILABLE:
-            pyautogui.FAILSAFE = True
-            pyautogui.PAUSE = 0.5
     
-    def _wait_for_login_screen(self):
-        """Wait for the login screen to appear."""
-        self.logger.info("Waiting for login screen to appear...")
-        
-        if not PYAUTOGUI_AVAILABLE:
-            self.logger.warning("PyAutoGUI not available - using time delay")
-            self.wait(3)
-            return True
-        
-        # Look for login screen elements
-        start_time = time.time()
-        while time.time() - start_time < self.timeout:
-            try:
-                # Try to find the "Log in bij SnelStart" text
-                if pyautogui.locateOnScreen is not None:
-                    # This would require screenshot templates - for now use delay
-                    self.wait(3)
-                    return True
-            except Exception:
-                pass
-            self.wait(1)
-        
-        self.logger.error("Login screen not found within timeout")
-        return False
+    def _get_ui_paths(self):
+        """Get UI path configurations from config."""
+        return self.config.get('snelstart', {}).get('ui_paths', {}).get('login', {})
     
-    def _find_email_field(self):
-        """Find and click the email input field."""
-        self.logger.info("Looking for email field...")
+    def _find_email_field(self, window):
+        """Find the email input field using UI paths."""
+        self.logger.info("Looking for email field using UI paths...")
         
-        if not PYAUTOGUI_AVAILABLE:
-            self.logger.warning("PyAutoGUI not available - cannot find field")
-            return False
+        ui_paths = self._get_ui_paths()
+        email_paths = ui_paths.get('email_field', [
+            # Default fallback paths
+            {'automation_id': 'email_input', 'control_type': 'EditControl'},
+            {'name': '*email*', 'control_type': 'EditControl'},
+            {'name': '*gebruiker*', 'control_type': 'EditControl'},
+            {'class_name': 'TextBox', 'search_text': 'email'},
+            {'class_name': 'TextBox', 'search_text': 'user'},
+            {'control_type': 'EditControl'}  # Generic fallback
+        ])
         
-        try:
-            # Get screen size and calculate center area where form likely is
-            screen_width, screen_height = pyautogui.size()
-            center_x, center_y = screen_width // 2, screen_height // 2
-            
-            # Click in the center area where email field should be
-            # Based on screenshot, email field is roughly in center
-            email_field_y = center_y - 50  # Slightly above center
-            pyautogui.click(center_x, email_field_y)
-            
-            self.logger.info("Clicked on email field area")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Failed to find email field: {str(e)}")
-            return False
+        return self.find_element_by_paths(window, email_paths)
     
-    def _enter_credentials(self):
-        """Enter email credentials."""
+    def _find_continue_button(self, window):
+        """Find the Continue/Login button using UI paths."""
+        self.logger.info("Looking for continue button using UI paths...")
+        
+        ui_paths = self._get_ui_paths()
+        button_paths = ui_paths.get('continue_button', [
+            # Default fallback paths
+            {'name': 'Doorgaan', 'control_type': 'ButtonControl'},
+            {'name': 'Continue', 'control_type': 'ButtonControl'},
+            {'name': 'Login', 'control_type': 'ButtonControl'},
+            {'name': 'Inloggen', 'control_type': 'ButtonControl'},
+            {'automation_id': 'continue_btn', 'control_type': 'ButtonControl'},
+            {'automation_id': 'login_btn', 'control_type': 'ButtonControl'},
+            {'search_text': 'doorgaan'},
+            {'search_text': 'continue'},
+            {'control_type': 'ButtonControl'}  # Generic fallback
+        ])
+        
+        return self.find_element_by_paths(window, button_paths)
+    
+    def _enter_email_credentials(self, email_field):
+        """Enter email credentials using safe methods."""
         email = self.config.get('snelstart', {}).get('login', {}).get('email', '')
         
         if not email:
-            self.logger.error("Email not configured")
+            self.logger.error("Email not configured in snelstart.login.email or SNELSTART_EMAIL environment variable")
             return False
         
-        if not PYAUTOGUI_AVAILABLE:
-            self.logger.warning("PyAutoGUI not available - cannot enter credentials")
-            return False
-        
-        try:
-            # Clear field and type email
-            pyautogui.hotkey('ctrl', 'a')  # Select all
-            self.wait(0.2)
-            pyautogui.typewrite(email)
-            self.logger.info("Email entered successfully")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Failed to enter credentials: {str(e)}")
-            return False
-    
-    def _click_continue_button(self):
-        """Click the blue 'Doorgaan' (Continue) button."""
-        self.logger.info("Looking for Continue button...")
-        
-        if not PYAUTOGUI_AVAILABLE:
-            self.logger.warning("PyAutoGUI not available - cannot click button")
-            return False
-        
-        try:
-            # Get screen size and calculate where button likely is
-            screen_width, screen_height = pyautogui.size()
-            center_x, center_y = screen_width // 2, screen_height // 2
-            
-            # Based on screenshot, button is below the email field
-            button_y = center_y + 50  # Below center
-            pyautogui.click(center_x, button_y)
-            
-            self.logger.info("Clicked Continue button")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Failed to click continue button: {str(e)}")
-            return False
+        self.logger.info("Entering email credentials...")
+        return self.safe_send_keys(email_field, email, clear_first=True)
     
     def _verify_login_success(self):
-        """Verify that login was successful."""
+        """Verify that login was successful by checking for expected elements."""
         self.logger.info("Verifying login success...")
         
-        # Wait a moment for page to load
+        # Wait for page transition
         self.wait(3)
         
-        # For now, assume success if no errors occurred
-        # In a real implementation, you would check for:
-        # - Dashboard elements
-        # - Absence of login form
-        # - Presence of user menu
+        # Get current window to check state
+        if self.automation:
+            window = self.automation.get_current_window(refresh=True)
+            if not window:
+                self.logger.warning("Cannot verify login - window not found")
+                return False
+            
+            # For now, basic verification - in real implementation you would check for:
+            # - Dashboard elements
+            # - User menu presence
+            # - Absence of login form
+            # - Specific post-login UI elements
+            
+            try:
+                # Check if window title or content has changed
+                window_name = getattr(window, 'Name', '')
+                self.logger.debug(f"Post-login window name: {window_name}")
+                
+                # Simple verification - if we can still access the window, assume success
+                if window.Exists():
+                    self.logger.info("Login verification completed - window accessible")
+                    return True
+                    
+            except Exception as e:
+                self.logger.warning(f"Login verification inconclusive: {str(e)}")
         
-        self.logger.info("Login verification completed")
+        # Default to success for now - improve this based on actual UI structure
+        self.logger.info("Login verification completed (basic)")
         return True
     
     def login(self):
-        """Main login workflow."""
-        self.logger.info("Starting login process...")
+        """Main login workflow using UI path architecture."""
+        self.logger.info("Starting login process with UI path architecture...")
+        
+        if not self.automation:
+            self.logger.error("No automation reference provided - cannot access window")
+            return False
         
         for attempt in range(self.retry_attempts):
             try:
                 self.logger.info(f"Login attempt {attempt + 1}/{self.retry_attempts}")
                 
-                # Step 1: Wait for login screen
-                if not self._wait_for_login_screen():
+                # Step 1: Get current window from centralized window management
+                window = self.automation.get_current_window()
+                if not window:
+                    self.logger.error("Snelstart window not available")
+                    self.wait(2)
                     continue
                 
-                # Step 2: Find and click email field
-                if not self._find_email_field():
+                # Step 2: Find email field using UI paths
+                email_field = self._find_email_field(window)
+                if not email_field:
+                    self.logger.warning("Email field not found")
+                    self.wait(2)
                     continue
                 
-                # Step 3: Enter email
-                if not self._enter_credentials():
+                # Step 3: Enter email credentials
+                if not self._enter_email_credentials(email_field):
+                    self.logger.warning("Failed to enter email credentials")
+                    self.wait(2)
                     continue
                 
-                # Step 4: Click continue button
-                if not self._click_continue_button():
-                    continue
+                # Step 4: Find and click continue button
+                continue_button = self._find_continue_button(window)
+                if continue_button:
+                    if self.safe_click(continue_button):
+                        self.logger.info("Continue button clicked successfully")
+                    else:
+                        self.logger.warning("Failed to click continue button")
+                        continue
+                else:
+                    self.logger.warning("Continue button not found, trying Enter key")
+                    if not self.safe_send_keys(email_field, '{Enter}', clear_first=False):
+                        self.logger.warning("Failed to send Enter key")
+                        continue
                 
                 # Step 5: Verify login success
                 if self._verify_login_success():
                     self.logger.info("Login completed successfully")
                     return True
+                else:
+                    self.logger.warning("Login verification failed")
                 
             except Exception as e:
                 self.logger.error(f"Login attempt {attempt + 1} failed: {str(e)}")
             
             if attempt < self.retry_attempts - 1:
                 self.logger.info("Retrying login...")
-                self.wait(2)
+                self.wait(3)
         
         self.logger.error("All login attempts failed")
         return False

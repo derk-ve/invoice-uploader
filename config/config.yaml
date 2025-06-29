@@ -6,6 +6,39 @@ snelstart:
   login:
     timeout: 30
     retry_attempts: 3
+  
+  # UI element paths for reliable automation
+  # Run utils/ui_inspector.py to discover specific automation IDs and element paths
+  ui_paths:
+    login:
+      email_field:
+        # Primary paths (replace with actual values from UI inspector)
+        - automation_id: "email_input"
+          control_type: "EditControl"
+        - name: "E-mailadres"
+          control_type: "EditControl"
+        - name: "Email"
+          control_type: "EditControl"
+        # Fallback paths
+        - class_name: "TextBox"
+          search_text: "email"
+        - class_name: "TextBox"
+          search_text: "gebruiker"
+        - control_type: "EditControl"
+      
+      continue_button:
+        # Primary paths (replace with actual values from UI inspector)
+        - name: "Doorgaan"
+          control_type: "ButtonControl"
+        - name: "Continue"
+          control_type: "ButtonControl"
+        - automation_id: "continue_btn"
+          control_type: "ButtonControl"
+        # Fallback paths
+        - search_text: "doorgaan"
+        - search_text: "continue"
+        - search_text: "inloggen"
+        - control_type: "ButtonControl"
 
 # Simple paths
 paths:

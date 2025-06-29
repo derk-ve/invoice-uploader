@@ -1,3 +1,6 @@
 pyautogui
 pillow
 pyyaml
+pywin32
+uiautomation
+pygetwindow
