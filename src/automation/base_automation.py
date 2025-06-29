@@ -39,6 +39,54 @@ class BaseAutomation:
         wait_time = seconds if seconds is not None else self.delay
         time.sleep(wait_time)
     
+    def _build_search_criteria(self, path_config):
+        """Build search criteria dictionary from path configuration."""
+        search_criteria = {}
+        
+        if 'automation_id' in path_config:
+            search_criteria['AutomationId'] = path_config['automation_id']
+        
+        if 'name' in path_config:
+            search_criteria['Name'] = path_config['name']
+        elif 'name_lambda' in path_config:
+            if path_config.get('search_pattern'):
+                # Create lambda function from search pattern
+                pattern = path_config['search_pattern']
+                search_criteria['Name'] = lambda name: pattern.lower() in name.lower()
+            else:
+                # Direct lambda function
+                search_criteria['Name'] = path_config['name_lambda']
+        
+        if 'class_name' in path_config:
+            search_criteria['ClassName'] = path_config['class_name']
+        
+        return search_criteria
+    
+    def _get_control_class(self, path_config):
+        """Get the appropriate UIAutomation control class from path config."""
+        if 'control_type' in path_config:
+            return getattr(auto, path_config['control_type'], auto.Control)
+        return auto.Control
+    
+    def _try_text_search_fallback(self, parent_window, path_config):
+        """Try to find element by searching children for text content."""
+        if 'search_text' not in path_config:
+            return None
+        
+        try:
+            children = parent_window.GetChildren()
+            search_text = path_config['search_text'].lower()
+            
+            for child in children:
+                name = getattr(child, 'Name', '').lower()
+                if search_text in name:
+                    self.logger.debug(f"Found element by text search: {path_config}")
+                    return child
+        except Exception as e:
+            self.logger.debug(f"Text search failed: {e}")
+        
+        return None
+
     def find_element_by_path(self, parent_window, path_config, timeout=5):
         """
         Find a UI element using path configuration.
@@ -60,41 +108,23 @@ class BaseAutomation:
             return None
         
         try:
-            # Build search criteria from path config
-            search_criteria = {}
+            # Build search criteria and get control class
+            search_criteria = self._build_search_criteria(path_config)
             
-            if 'automation_id' in path_config:
-                search_criteria['AutomationId'] = path_config['automation_id']
-            if 'name' in path_config:
-                search_criteria['Name'] = path_config['name']
-            if 'name_lambda' in path_config:
-                if path_config.get('search_pattern'):
-                    # Create lambda function from search pattern
-                    pattern = path_config['search_pattern']
-                    search_criteria['Name'] = lambda name: pattern.lower() in name.lower()
-                else:
-                    # Direct lambda function
-                    search_criteria['Name'] = path_config['name_lambda']
-            if 'class_name' in path_config:
-                search_criteria['ClassName'] = path_config['class_name']
-            if 'control_type' in path_config:
-                search_criteria['ControlType'] = getattr(auto.ControlType, path_config['control_type'], None)
-            
-            # Search for the element
+            # Try primary search using UIAutomation API
             if search_criteria:
-                element = parent_window.GetFirstChildControl(**search_criteria)
+                control_class = self._get_control_class(path_config)
+                search_criteria['searchDepth'] = 2
+                
+                element = control_class(**search_criteria)
                 if element and element.Exists(maxSearchSeconds=timeout):
                     self.logger.debug(f"Found element using path: {path_config}")
                     return element
             
-            # Fallback: search by text content if specified
-            if 'search_text' in path_config:
-                children = parent_window.GetChildren()
-                for child in children:
-                    name = getattr(child, 'Name', '').lower()
-                    if path_config['search_text'].lower() in name:
-                        self.logger.debug(f"Found element by text search: {path_config}")
-                        return child
+            # Try fallback text search
+            element = self._try_text_search_fallback(parent_window, path_config)
+            if element:
+                return element
             
             return None
             
