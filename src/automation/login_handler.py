@@ -23,7 +23,7 @@ class LoginHandler(BaseAutomation):
             # Default fallback paths based on inspection
             {'automation_id': 'WebAuthentication', 'control_type': 'WindowControl'},
             {'name': 'Inloggen SnelStart 12', 'control_type': 'WindowControl'},
-            {'name': '*Inloggen*', 'control_type': 'WindowControl'},
+            {'name_lambda': lambda name: 'Inloggen' in name, 'control_type': 'WindowControl'},
         ])
         
         return self.find_element_by_paths(main_window, container_paths)
@@ -45,8 +45,8 @@ class LoginHandler(BaseAutomation):
         email_paths = ui_paths.get('email_field', [
             # Default fallback paths
             {'automation_id': 'email_input', 'control_type': 'EditControl'},
-            {'name': '*email*', 'control_type': 'EditControl'},
-            {'name': '*gebruiker*', 'control_type': 'EditControl'},
+            {'name_lambda': lambda name: 'email' in name.lower(), 'control_type': 'EditControl'},
+            {'name_lambda': lambda name: 'gebruiker' in name.lower(), 'control_type': 'EditControl'},
             {'class_name': 'TextBox', 'search_text': 'email'},
             {'class_name': 'TextBox', 'search_text': 'user'},
             {'control_type': 'EditControl'}  # Generic fallback

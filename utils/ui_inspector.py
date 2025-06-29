@@ -66,11 +66,14 @@ class UIInspector:
         if UI_AUTOMATION_AVAILABLE:
             try:
                 # Find windows using UI Automation - try different patterns
-                patterns = ["*Inloggen*", "*SnelStart*"]
-                for pattern in patterns:
+                patterns = [
+                    lambda name: 'Inloggen' in name,
+                    lambda name: 'SnelStart' in name
+                ]
+                for i, pattern_func in enumerate(patterns):
                     try:
                         # Use WindowControl to find by pattern
-                        window = auto.WindowControl(searchDepth=1, Name=pattern)
+                        window = auto.WindowControl(searchDepth=1, Name=pattern_func)
                         if window.Exists(maxSearchSeconds=2):
                             windows.append({
                                 'method': 'uiautomation',
@@ -82,7 +85,7 @@ class UIInspector:
                             })
                             print(f"Found UI Automation window: {window.Name}")
                     except Exception as pattern_error:
-                        print(f"Pattern {pattern} failed: {pattern_error}")
+                        print(f"Pattern {i+1} failed: {pattern_error}")
                         
             except Exception as e:
                 print(f"Error with uiautomation: {e}")
@@ -143,19 +146,25 @@ class UIInspector:
                     titles_to_try.append(title)
             
             # Also try pattern matching as fallback
-            patterns_to_try = ["*Inloggen*", "*SnelStart*", "Inloggen SnelStart 12", "SnelStart 12"]
+            patterns_to_try = [
+                lambda name: 'Inloggen' in name,
+                lambda name: 'SnelStart' in name,
+                "Inloggen SnelStart 12", 
+                "SnelStart 12"
+            ]
             
             # Combine exact titles and patterns
             all_attempts = titles_to_try + patterns_to_try
             
-            print(f"Will try these window identifiers: {all_attempts}")
+            print(f"Will try {len(all_attempts)} window identifiers")
             
-            for attempt in all_attempts:
-                print(f"Trying to find window: '{attempt}'")
+            for i, attempt in enumerate(all_attempts):
+                attempt_desc = f"Lambda function {i+1}" if callable(attempt) else f"'{attempt}'"
+                print(f"Trying to find window: {attempt_desc}")
                 try:
                     window = auto.WindowControl(searchDepth=1, Name=attempt)
                     if window.Exists(maxSearchSeconds=2):
-                        print(f"SUCCESS: Found window with Name='{attempt}': {window.Name}")
+                        print(f"SUCCESS: Found window with {attempt_desc}: {window.Name}")
                         # Prioritize login window
                         if "Inloggen" in window.Name:
                             login_window = window
@@ -165,9 +174,9 @@ class UIInspector:
                             login_window = window
                             print(f"Using fallback window: {window.Name}")
                     else:
-                        print(f"Window with Name='{attempt}' does not exist")
+                        print(f"Window with {attempt_desc} does not exist")
                 except Exception as attempt_error:
-                    print(f"Error trying '{attempt}': {attempt_error}")
+                    print(f"Error trying {attempt_desc}: {attempt_error}")
             
             # If still no window found, try alternative approaches
             if not login_window:
@@ -175,9 +184,9 @@ class UIInspector:
                 
                 # Try using different search criteria
                 alternative_attempts = [
-                    {"ClassName": "Window", "Name": "*Inloggen*"},
-                    {"ClassName": "*", "Name": "Inloggen SnelStart 12"},
-                    {"Name": "Inloggen*"},
+                    {"ClassName": "Window", "Name": lambda name: 'Inloggen' in name},
+                    {"Name": "Inloggen SnelStart 12"},
+                    {"Name": lambda name: name.startswith('Inloggen')},
                 ]
                 
                 for criteria in alternative_attempts:

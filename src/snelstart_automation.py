@@ -23,7 +23,11 @@ class SnelstartAutomation:
         # Window management
         self.current_window = None
         self.window_cache = {}
-        self.window_patterns = ["*SnelStart*", "*snelstart*", "*SNELSTART*"]
+        self.window_patterns = [
+            lambda name: 'SnelStart' in name,
+            lambda name: 'snelstart' in name,
+            lambda name: 'SNELSTART' in name
+        ]
         
         # Initialize all automation components
         self.app_launcher = AppLauncher(config, logger)
@@ -60,8 +64,8 @@ class SnelstartAutomation:
         self.logger.info("Finding Snelstart window...")
         
         try:
-            for pattern in self.window_patterns:
-                window = auto.WindowControl(searchDepth=1, Name=pattern)
+            for pattern_func in self.window_patterns:
+                window = auto.WindowControl(searchDepth=1, Name=pattern_func)
                 if window.Exists(maxSearchSeconds=5):
                     self.current_window = window
                     self.logger.info(f"Found Snelstart window: {window.Name}")

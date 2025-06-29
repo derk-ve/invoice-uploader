@@ -67,6 +67,8 @@ class BaseAutomation:
                 search_criteria['AutomationId'] = path_config['automation_id']
             if 'name' in path_config:
                 search_criteria['Name'] = path_config['name']
+            if 'name_lambda' in path_config:
+                search_criteria['Name'] = path_config['name_lambda']
             if 'class_name' in path_config:
                 search_criteria['ClassName'] = path_config['class_name']
             if 'control_type' in path_config:
