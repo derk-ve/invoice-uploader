@@ -15,7 +15,15 @@ class LoginHandler(BaseAutomation):
         return self.config.get('snelstart', {}).get('ui_paths', {}).get('login', {})
     
     def _find_login_container(self, main_window):
-        """Find the embedded login container within the main SnelStart window."""
+        """Find the login container - either the window itself or embedded container."""
+        window_name = getattr(main_window, 'Name', '')
+        
+        # If this is already the login window, use it directly
+        if 'Inloggen' in window_name:
+            self.logger.info(f"Using login window directly: {window_name}")
+            return main_window
+        
+        # Otherwise, look for embedded container in main window
         self.logger.info("Looking for embedded login container...")
         
         ui_paths = self._get_ui_paths()
@@ -23,7 +31,6 @@ class LoginHandler(BaseAutomation):
             # Default fallback paths based on inspection
             {'automation_id': 'WebAuthentication', 'control_type': 'WindowControl'},
             {'name': 'Inloggen SnelStart 12', 'control_type': 'WindowControl'},
-            {'name_lambda': lambda name: 'Inloggen' in name, 'control_type': 'WindowControl'},
         ])
         
         return self.find_element_by_paths(main_window, container_paths)
@@ -43,13 +50,17 @@ class LoginHandler(BaseAutomation):
         
         ui_paths = self._get_ui_paths()
         email_paths = ui_paths.get('email_field', [
-            # Default fallback paths
+            # Default fallback paths - exact matches only
             {'automation_id': 'email_input', 'control_type': 'EditControl'},
-            {'name_lambda': lambda name: 'email' in name.lower(), 'control_type': 'EditControl'},
-            {'name_lambda': lambda name: 'gebruiker' in name.lower(), 'control_type': 'EditControl'},
-            {'class_name': 'TextBox', 'search_text': 'email'},
-            {'class_name': 'TextBox', 'search_text': 'user'},
-            {'control_type': 'EditControl'}  # Generic fallback
+            {'name': 'Email', 'control_type': 'EditControl'},
+            {'name': 'Gebruiker', 'control_type': 'EditControl'},
+            {'name': 'User', 'control_type': 'EditControl'},
+            {'class_name': 'TextBox'},
+            {'class_name': 'Edit', 'control_type': 'EditControl'},  # Common Windows edit class
+            {'control_type': 'EditControl'},  # Generic fallback
+            # Additional fallbacks for web-based login forms
+            {'control_type': 'DocumentControl'},  # Sometimes login forms are in document controls
+            {'control_type': 'PaneControl'},  # Sometimes fields are in panes
         ])
         
         return self.find_element_by_paths(search_window, email_paths)
@@ -135,20 +146,18 @@ class LoginHandler(BaseAutomation):
         """Main login workflow using UI path architecture."""
         self.logger.info("Starting login process with UI path architecture...")
         
-        if not self.automation:
-            self.logger.error("No automation reference provided - cannot access window")
-            return False
-        
         for attempt in range(self.retry_attempts):
             try:
                 self.logger.info(f"Login attempt {attempt + 1}/{self.retry_attempts}")
                 
-                # Step 1: Get current window from centralized window management
-                window = self.automation.get_current_window()
+                # Step 1: Find the correct login window (separate window or main window)
+                window = self.find_snelstart_login_window(timeout=10)
                 if not window:
-                    self.logger.error("Snelstart window not available")
+                    self.logger.error("Snelstart login window not found")
                     self.wait(2)
                     continue
+                
+                self.logger.info(f"Using window for login: {window.Name}")
                 
                 # Step 2: Find email field using UI paths
                 email_field = self._find_email_field(window)

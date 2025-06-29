@@ -14,6 +14,12 @@ try:
 except ImportError:
     PYGETWINDOW_AVAILABLE = False
 
+try:
+    import win32gui
+    WIN32_AVAILABLE = True
+except ImportError:
+    WIN32_AVAILABLE = False
+
 
 class EnvironmentDetector:
     """Detects the current operating environment."""
@@ -48,14 +54,6 @@ class BaseAutomation:
         
         if 'name' in path_config:
             search_criteria['Name'] = path_config['name']
-        elif 'name_lambda' in path_config:
-            if path_config.get('search_pattern'):
-                # Create lambda function from search pattern
-                pattern = path_config['search_pattern']
-                search_criteria['Name'] = lambda name: pattern.lower() in name.lower()
-            else:
-                # Direct lambda function
-                search_criteria['Name'] = path_config['name_lambda']
         
         if 'class_name' in path_config:
             search_criteria['ClassName'] = path_config['class_name']
@@ -282,3 +280,139 @@ class BaseAutomation:
         
         self.logger.error("All send keys attempts failed")
         return False
+    
+    def find_window_with_pygetwindow(self, title_pattern, timeout=10):
+        """
+        Find a window using pygetwindow and convert to UI automation control.
+        
+        Args:
+            title_pattern: String to match window title (exact substring match)
+            timeout: Maximum time to wait for window
+            
+        Returns:
+            UI automation WindowControl if found, None otherwise
+        """
+        if not PYGETWINDOW_AVAILABLE:
+            self.logger.warning("pygetwindow not available")
+            return None
+        
+        if not UI_AUTOMATION_AVAILABLE:
+            self.logger.warning("UI automation not available")
+            return None
+        
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            try:
+                windows = gw.getAllWindows()
+                for window in windows:
+                    window_title = window.title
+                    
+                    # Check if window title contains the pattern string
+                    if title_pattern in window_title:
+                        return self._convert_pygetwindow_to_uiautomation(window)
+                
+                self.wait(0.5)
+                
+            except Exception as e:
+                self.logger.debug(f"Error searching for window: {e}")
+                self.wait(0.5)
+        
+        self.logger.warning(f"Window with pattern '{title_pattern}' not found within {timeout} seconds")
+        return None
+    
+    def _convert_pygetwindow_to_uiautomation(self, pyget_window):
+        """
+        Convert a pygetwindow Window to UI automation WindowControl.
+        
+        Args:
+            pyget_window: pygetwindow Window object
+            
+        Returns:
+            UI automation WindowControl if successful, None otherwise
+        """
+        if not UI_AUTOMATION_AVAILABLE:
+            return None
+        
+        try:
+            # Method 1: Try using window handle if available
+            if hasattr(pyget_window, '_hWnd') and WIN32_AVAILABLE:
+                hwnd = pyget_window._hWnd
+                self.logger.debug(f"Converting window using handle: {hwnd}")
+                window_control = auto.WindowControl(searchDepth=1, foundIndex=1)
+                
+                # Find the window by iterating through top-level windows
+                desktop = auto.GetRootControl()
+                for child in desktop.GetChildren():
+                    try:
+                        if hasattr(child, 'NativeWindowHandle') and child.NativeWindowHandle == hwnd:
+                            self.logger.debug(f"Found UI automation window: {child.Name}")
+                            return child
+                    except:
+                        continue
+            
+            # Method 2: Try matching by exact title
+            try:
+                window_control = auto.WindowControl(searchDepth=1, Name=pyget_window.title)
+                if window_control.Exists(maxSearchSeconds=2):
+                    self.logger.debug(f"Found window by title: {pyget_window.title}")
+                    return window_control
+            except Exception as title_error:
+                self.logger.debug(f"Title match failed: {title_error}")
+            
+            # Method 3: Try finding by pattern matching
+            try:
+                desktop = auto.GetRootControl()
+                for child in desktop.GetChildren():
+                    try:
+                        if child.Name == pyget_window.title:
+                            self.logger.debug(f"Found window by iteration: {child.Name}")
+                            return child
+                    except:
+                        continue
+            except Exception as iter_error:
+                self.logger.debug(f"Iteration match failed: {iter_error}")
+            
+            self.logger.warning(f"Could not convert pygetwindow to UI automation: {pyget_window.title}")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error converting pygetwindow to UI automation: {e}")
+            return None
+    
+    def find_snelstart_login_window(self, timeout=10):
+        """
+        Find the Snelstart login window using multiple strategies.
+        
+        Returns:
+            UI automation WindowControl for login window, None if not found
+        """
+        self.logger.info("Searching for Snelstart login window...")
+        
+        # Strategy 1: Look for separate login window first
+        login_patterns = [
+            "Inloggen SnelStart 12",
+            "Inloggen SnelStart"
+        ]
+        
+        for pattern in login_patterns:
+            self.logger.debug(f"Trying login pattern: {pattern}")
+            window = self.find_window_with_pygetwindow(pattern, timeout=3)
+            if window:
+                self.logger.info(f"Found separate login window: {window.Name}")
+                return window
+        
+        # Strategy 2: Look for main window as fallback
+        main_patterns = [
+            "SnelStart 12"
+        ]
+        
+        for pattern in main_patterns:
+            self.logger.debug(f"Trying main window pattern: {pattern}")
+            window = self.find_window_with_pygetwindow(pattern, timeout=3)
+            if window:
+                self.logger.info(f"Found main window as fallback: {window.Name}")
+                return window
+        
+        self.logger.warning("No Snelstart window found")
+        return None
