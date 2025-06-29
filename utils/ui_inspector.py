@@ -113,7 +113,7 @@ class UIInspector:
         print(f"Titles found by pygetwindow: {found_titles}")
         
         # Debug: Show what UI automation can see
-        print("\\nDEBUG: Checking what UI automation can find...")
+        print("\nDEBUG: Checking what UI automation can find...")
         try:
             # Try to enumerate all top-level windows that UI automation can see
             desktop = auto.GetRootControl()
@@ -171,7 +171,7 @@ class UIInspector:
             
             # If still no window found, try alternative approaches
             if not login_window:
-                print("\\nTrying alternative approaches...")
+                print("\nTrying alternative approaches...")
                 
                 # Try using different search criteria
                 alternative_attempts = [
@@ -303,25 +303,30 @@ class UIInspector:
             print(f"  {'  ' * depth}Error getting children at depth {depth}: {e}")
     
     def generate_report(self):
-        """Generate a detailed inspection report with clear UI structure."""
+        """Generate a comprehensive inspection report."""
         report = []
-        report.append("=== SNELSTART UI INSPECTION REPORT ===\\n")
         
-        # Windows found
+        report.append("=== SNELSTART UI INSPECTION REPORT ===")
+        report.append("")
+        
+        # Window information
         report.append("WINDOWS FOUND:")
         if self.snelstart_windows:
-            for i, window in enumerate(self.snelstart_windows):
-                report.append(f"  {i+1}. Method: {window['method']}")
+            for i, window in enumerate(self.snelstart_windows, 1):
+                report.append(f"  {i}. Method: {window['method']}")
                 report.append(f"     Title: {window['title']}")
-                if 'automation_id' in window:
+                if window.get('automation_id'):
                     report.append(f"     AutomationId: {window['automation_id']}")
+                if window.get('class_name'):
                     report.append(f"     ClassName: {window['class_name']}")
+                if window.get('control_type'):
                     report.append(f"     ControlType: {window['control_type']}")
                 report.append("")
         else:
             report.append("  No SnelStart windows found")
         
-        report.append("\\n=== UI STRUCTURE FOR PATH DEFINITIONS ===\\n")
+        report.append("=== UI STRUCTURE FOR PATH DEFINITIONS ===")
+        report.append("")
         
         # Create a hierarchical structure view
         if self.elements_found:
@@ -338,7 +343,7 @@ class UIInspector:
                 if depth == 0:
                     report.append("MAIN WINDOW STRUCTURE:")
                 else:
-                    report.append(f"\\nDEPTH {depth} ELEMENTS:")
+                    report.append(f"DEPTH {depth} ELEMENTS:")
                 
                 for element in depth_groups[depth]:
                     indent = "  " + ("  " * depth)
@@ -373,7 +378,8 @@ class UIInspector:
             report.append("  No UI elements found")
         
         # Add UI path suggestions
-        report.append("\\n=== SUGGESTED UI PATHS FOR AUTOMATION ===\\n")
+        report.append("=== SUGGESTED UI PATHS FOR AUTOMATION ===")
+        report.append("")
         
         # Look for login-relevant elements
         login_elements = []
@@ -430,7 +436,8 @@ class UIInspector:
             report.append("")
         
         # Add configuration template
-        report.append("\\n=== CONFIGURATION TEMPLATE ===\\n")
+        report.append("=== CONFIGURATION TEMPLATE ===")
+        report.append("")
         report.append("Add this to your config.yaml under snelstart.ui_paths.login:")
         report.append("")
         report.append("login_container:")
@@ -440,7 +447,8 @@ class UIInspector:
                 report.append(f"  - automation_id: '{element['automation_id']}'")
                 report.append(f"    control_type: '{element['type']}'")
         
-        report.append("\\nemail_field:")
+        report.append("")
+        report.append("email_field:")
         if input_elements:
             for element in input_elements[:2]:  # Show top 2 candidates
                 report.append(f"  - # Option: {element['type']}")
@@ -452,7 +460,8 @@ class UIInspector:
                     report.append(f"    class_name: '{element['class_name']}'")
                 report.append(f"    control_type: '{element['type']}'")
         
-        report.append("\\ncontinue_button:")
+        report.append("")
+        report.append("continue_button:")
         if button_elements:
             for element in button_elements[:2]:  # Show top 2 candidates
                 report.append(f"  - # Option: {element['type']}")
@@ -464,7 +473,7 @@ class UIInspector:
                     report.append(f"    class_name: '{element['class_name']}'")
                 report.append(f"    control_type: '{element['type']}'")
         
-        return "\\n".join(report)
+        return "\n".join(report)
     
     def save_report(self, filename="ui_inspection_report.txt"):
         """Save the inspection report to a file."""
@@ -475,11 +484,16 @@ class UIInspector:
         logs_dir.mkdir(exist_ok=True)
         
         report_path = logs_dir / filename
-        with open(report_path, 'w', encoding='utf-8') as f:
+        with open(report_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(report)
         
         print(f"Report saved to: {report_path}")
         return report_path
+    
+    def print_report(self):
+        """Print the report to console with proper formatting."""
+        report = self.generate_report()
+        print(report)
 
 
 def main():
@@ -492,24 +506,23 @@ def main():
     
     inspector = UIInspector()
     
-    print("\\n1. Finding SnelStart windows...")
+    print("\n1. Finding SnelStart windows...")
     windows = inspector.find_snelstart_windows()
     print(f"Found {len(windows)} SnelStart windows")
     
-    print("\\n2. Inspecting login elements...")
+    print("\n2. Inspecting login elements...")
     elements = inspector.inspect_login_elements()
     print(f"Found {len(elements)} UI elements")
     
-    print("\\n3. Generating report...")
-    report = inspector.generate_report()
-    print(report)
+    print("\n3. Generating and displaying report...")
+    inspector.print_report()
     
-    print("\\n4. Saving detailed report...")
+    print("\n4. Saving detailed report...")
     report_path = inspector.save_report()
     
-    print("\\nInspection complete!")
+    print("\nInspection complete!")
     print(f"Check the report at: {report_path}")
-    print("\\nUse this information to improve element detection in login_handler.py")
+    print("\nUse this information to improve element detection in login_handler.py")
 
 
 if __name__ == "__main__":
